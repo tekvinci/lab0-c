@@ -14,34 +14,114 @@
 /* Create an empty queue */
 struct list_head *q_new()
 {
-    return NULL;
+    struct list_head *new_queue = malloc(sizeof(struct list_head));
+    if (!new_queue) {
+        return NULL;
+    }
+    INIT_LIST_HEAD(new_queue);
+    return new_queue;
 }
 
 /* Free all storage used by queue */
-void q_free(struct list_head *head) {}
+void q_free(struct list_head *head)
+{
+    if (!head) {
+        return;  // 如果 head 為 NULL，直接返回
+    }
+
+    struct list_head *current, *tmp;
+
+    // 安全遍歷佇列，並釋放節點記憶體
+    list_for_each_safe (current, tmp, head) {
+        element_t *entry = list_entry(current, element_t, list);
+        q_release_element(entry);  // 釋放元素的記憶體
+    }
+
+    // 釋放佇列頭節點
+    free(head);
+}
 
 /* Insert an element at head of queue */
 bool q_insert_head(struct list_head *head, char *s)
 {
-    return true;
+    if (!head || !s) {
+        return false;  // 如果佇列頭或字串為 NULL，返回 false
+    }
+    // 分配記憶體給新的元素
+    element_t *new_element = malloc(sizeof(element_t));
+    if (!new_element) {
+        return false;  // 如果記憶體分配失敗，返回 false
+    }
+    // 為字串分配記憶體並複製內容
+    new_element->value = strdup(s);
+    if (!new_element->value) {
+        free(new_element);  // 如果字串分配失敗，釋放節點記憶體
+        return false;
+    }
+    // 將新節點加入到佇列的開頭
+    list_add(&new_element->list, head);
+    return true;  // 插入成功
 }
 
 /* Insert an element at tail of queue */
 bool q_insert_tail(struct list_head *head, char *s)
 {
-    return true;
+    if (!head || !s) {
+        return false;  // 若佇列或字串為 NULL，返回失敗
+    }
+    // 分配記憶體給新節點
+    element_t *new_element = malloc(sizeof(element_t));
+    if (!new_element) {
+        return false;  // 若記憶體分配失敗，返回失敗
+    }
+    // 分配記憶體給字串，並複製內容
+    new_element->value = strdup(s);
+    if (!new_element->value) {
+        free(new_element);  // 若字串記憶體分配失敗，釋放節點
+        return false;
+    }
+    // 將新節點插入到佇列的尾端
+    list_add_tail(&new_element->list, head);
+    return true;  // 插入成功
 }
 
 /* Remove an element from head of queue */
 element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (!head || list_empty(head)) {
+        return NULL;  // 若佇列為 NULL 或為空，返回 NULL
+    }
+    // 獲取佇列的第一個節點
+    struct list_head *first = head->next;
+    element_t *element = list_entry(first, element_t, list);
+    // 如果提供了緩衝區，將字串複製到緩衝區
+    if (sp) {
+        strncpy(sp, element->value, bufsize - 1);
+        sp[bufsize - 1] = '\0';  // 確保以 NULL 結尾
+    }
+    // 從佇列中移除該節點
+    list_del(first);
+    return element;  // 返回移除的節點指標
 }
 
 /* Remove an element from tail of queue */
 element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (!head || list_empty(head)) {
+        return NULL;  // 若佇列為 NULL 或為空，返回 NULL
+    }
+
+    // 獲取佇列的最後一個節點
+    struct list_head *last = head->prev;
+    element_t *element = list_entry(last, element_t, list);
+    // 如果提供了緩衝區，將字串複製到緩衝區
+    if (sp) {
+        strncpy(sp, element->value, bufsize - 1);
+        sp[bufsize - 1] = '\0';  // 確保以 NULL 結尾
+    }
+    // 從佇列中移除該節點
+    list_del(last);
+    return element;  // 返回移除的節點指標
 }
 
 /* Return number of elements in queue */
