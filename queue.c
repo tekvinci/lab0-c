@@ -110,7 +110,6 @@ element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
     if (!head || list_empty(head)) {
         return NULL;  // 若佇列為 NULL 或為空，返回 NULL
     }
-
     // 獲取佇列的最後一個節點
     struct list_head *last = head->prev;
     element_t *element = list_entry(last, element_t, list);
@@ -127,40 +126,185 @@ element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
 /* Return number of elements in queue */
 int q_size(struct list_head *head)
 {
-    return -1;
+    if (!head)
+        return 0;
+    int count = 0;
+    struct list_head *pos;
+    list_for_each (pos, head) {
+        count++;
+    }
+    return count;
 }
 
 /* Delete the middle node in queue */
 bool q_delete_mid(struct list_head *head)
 {
-    // https://leetcode.com/problems/delete-the-middle-node-of-a-linked-list/
-    return true;
+    if (!head || list_empty(head)) {
+        return false;  // 若佇列為 NULL 或為空，返回 false
+    }
+    struct list_head *slow = head->next, *fast = head->next;
+    // 使用快慢指標尋找中間節點
+    while (fast != head && fast->next != head) {
+        slow = slow->next;
+        fast = fast->next->next;
+    }
+    // 轉換 slow 指標為 element_t
+    element_t *mid_element = list_entry(slow, element_t, list);
+    // 從鏈結串列中移除該節點
+    list_del(slow);
+    // 釋放記憶體
+    q_release_element(mid_element);
+    return true;  // 成功刪除中間節點
 }
 
 /* Delete all nodes that have duplicate string */
 bool q_delete_dup(struct list_head *head)
 {
-    // https://leetcode.com/problems/remove-duplicates-from-sorted-list-ii/
-    return true;
+    if (!head || list_empty(head)) {
+        return false;  // 若佇列為 NULL 或為空，返回 false
+    }
+
+    struct list_head *cur = head->next, *tmp;
+    bool deleted = false;  // 標記是否刪除了節點
+
+    while (cur != head) {
+        element_t *elem = list_entry(cur, element_t, list);
+        tmp = cur->next;
+
+        bool has_dup = false;
+        while (tmp != head) {
+            element_t *next_elem = list_entry(tmp, element_t, list);
+            if (strcmp(elem->value, next_elem->value) == 0) {
+                has_dup = true;
+                struct list_head *dup = tmp;
+                tmp = tmp->next;
+                list_del(dup);
+                q_release_element(next_elem);  // 釋放重複節點的記憶體
+            } else {
+                break;
+            }
+        }
+
+        if (has_dup) {
+            // 也刪除當前節點
+            struct list_head *dup = cur;
+            cur = tmp;
+            list_del(dup);
+            q_release_element(elem);
+            deleted = true;
+        } else {
+            cur = tmp;
+        }
+    }
+
+    return deleted;
 }
 
 /* Swap every two adjacent nodes */
 void q_swap(struct list_head *head)
 {
-    // https://leetcode.com/problems/swap-nodes-in-pairs/
+    if (!head || list_empty(head) || list_is_singular(head)) {
+        return;  // 如果佇列為 NULL、空，或只有一個元素，則無需交換
+    }
+    struct list_head *cur = head->next;
+    while (cur != head && cur->next != head) {
+        struct list_head *next = cur->next;  // 獲取下一個節點
+        list_move(cur, next);  // 交換當前節點與下一個節點
+    }
 }
 
 /* Reverse elements in queue */
-void q_reverse(struct list_head *head) {}
+void q_reverse(struct list_head *head)
+{
+    if (!head || list_empty(head) || list_is_singular(head)) {
+        return;  // 若佇列為 NULL、空，或只有一個元素，則無需反轉
+    }
+    struct list_head *cur, *tmp;
+    list_for_each_safe (cur, tmp, head) {
+        list_move(cur, head);
+    }
+}
 
 /* Reverse the nodes of the list k at a time */
 void q_reverseK(struct list_head *head, int k)
 {
-    // https://leetcode.com/problems/reverse-nodes-in-k-group/
+    if (!head || list_empty(head) || k < 2) {
+        return;  // 若佇列為 NULL、空，或 k < 2 則無需反轉
+    }
+    struct list_head *cur = head->next, *group_tail = head, *tmp;
+    int count = 0;
+    while (cur != head) {
+        count++;
+        if (count % k == 0) {
+            struct list_head *group_head = group_tail->next;
+            struct list_head *next_group = cur->next;
+            // 反轉當前 k 個節點
+            struct list_head *node = group_head;
+            struct list_head *end = next_group;
+            while (node != next_group) {
+                tmp = node->next;
+                list_move(node, end);
+                node = tmp;
+            }
+            group_tail = group_head;  // 更新 group_tail
+            cur = next_group;         // 更新當前指標
+        } else {
+            cur = cur->next;
+        }
+    }
+}
+
+void q_merge_two(struct list_head *first, struct list_head *second)
+{
+    struct list_head sorted;
+    INIT_LIST_HEAD(&sorted);
+
+    while (!list_empty(first) && !list_empty(second)) {
+        element_t *e1 = list_entry(first->next, element_t, list);
+        element_t *e2 = list_entry(second->next, element_t, list);
+
+        if (strcmp(e1->value, e2->value) <= 0)
+            list_move_tail(first->next, &sorted);
+        else
+            list_move_tail(second->next, &sorted);
+    }
+
+    /* Append remaining elements */
+    list_splice_tail(first, &sorted);
+    list_splice_tail(second, &sorted);
+
+    /* Copy sorted list back */
+    list_splice(&sorted, first);
 }
 
 /* Sort elements of queue in ascending/descending order */
-void q_sort(struct list_head *head, bool descend) {}
+void q_sort(struct list_head *head, bool descend)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+    /* Find the middle point using slow/fast pointer */
+    struct list_head *mid, *slow, *fast;
+    slow = fast = head->next;
+    while (fast != head && fast->next != head) {
+        slow = slow->next;
+        fast = fast->next->next;
+    }
+    mid = slow;
+    /* Divide into two parts */
+    LIST_HEAD(second);
+    list_cut_position(&second, mid, head->prev);
+
+    /* Sort each part */
+    q_sort(head, false);
+    q_sort(&second, false);
+
+    /* Merge two sorted lists */
+    q_merge_two(head, &second);
+
+    /* If descending order is required, reverse the list */
+    if (descend)
+        q_reverse(head);
+}
 
 /* Remove every node which has a node with a strictly less value anywhere to
  * the right side of it */
